@@ -7,7 +7,7 @@ class SFTDataCollator(object):
     def __init__(self, tokenizer, max_seq_length):
         self.tokenizer = tokenizer
         self.max_seq_length = max_seq_length
-        self.pad_token_id = tokenizer.pad_token_id
+        self.pad_token_id = tokenizer.pad_token_id # 151643
 
     def __call__(self, batch: List[Dict[str, Any]]) -> Dict[str, Any]:
         # 找出batch中的最大长度

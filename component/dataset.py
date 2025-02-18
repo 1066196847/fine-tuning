@@ -15,13 +15,13 @@ class UnifiedSFTDataset(Dataset):
     def __init__(self, file, tokenizer, max_seq_length, template):
         self.tokenizer = tokenizer
         self.template_name = template.template_name
-        self.system_format = template.system_format
-        self.user_format = template.user_format
-        self.assistant_format = template.assistant_format
+        self.system_format = template.system_format # '<|im_start|>system\n{content}<|im_end|>\n'
+        self.user_format = template.user_format # '<|im_start|>user\n{content}<|im_end|>\n<|im_start|>assistant\n'
+        self.assistant_format = template.assistant_format # '{content}<|im_end|>\n'
 
-        self.system = template.system
+        self.system = template.system # "You are a helpful assistant."
 
-        self.max_seq_length = max_seq_length
+        self.max_seq_length = max_seq_length # 2048
         logger.info('Loading data: {}'.format(file))
         with open(file, 'r', encoding='utf8') as f:
             data_list = f.readlines()
@@ -41,9 +41,14 @@ class UnifiedSFTDataset(Dataset):
         # setting system information
         if self.system_format is not None:
             system = data['system'].strip() if 'system' in data.keys() else self.system
-            # system信息不为空
+            # system信息不为空，内容如下
+            # <|im_start|>system
+            # You are a helpful assistant.<|im_end|>\n
+            #
+            # 编码后：[151644, 8948, 198, 2610, 525, 264, 10950, 17847, 13, 151645, 198]
+            # <|im_start|>对应的编码是151644，<|im_end|>对应的编码是151645，\n的编码是198
             if system is not None:
-                system_text = self.system_format.format(content=system)
+                system_text = self.system_format.format(content=system) # 把system传到system_format这个格式中，进行替换
                 input_ids = self.tokenizer.encode(system_text, add_special_tokens=False) 
                 target_mask = [0] * len(input_ids)  # 0 表示该位置不需要预测
 
@@ -52,7 +57,7 @@ class UnifiedSFTDataset(Dataset):
         for i, conv in enumerate(conversations):
             human = conv['human'].strip() 
             assistant = conv['assistant'].strip()
-            # 套用format模板
+            # 套用format模板。self.tokenizer.eos_token=<|endoftext|>  对应的编码是：151643
             human = self.user_format.format(content=human, stop_token=self.tokenizer.eos_token)
             assistant = self.assistant_format.format(content=assistant, stop_token=self.tokenizer.eos_token)
             # tokenizer 编码

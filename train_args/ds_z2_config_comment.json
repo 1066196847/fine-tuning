@@ -1,0 +1,52 @@
+{
+    "fp16": {
+        "enabled": "auto",#,是否启用半精度浮点数（FP16）训练是自动决定的，通常基于硬件支持和模型大小。视频里说过用的是bf16
+        "loss_scale": 0, #, 表示自动选择损失缩放因子，用于防止FP16下的梯度下溢
+        "loss_scale_window": 1000, #, 调整损失缩放因子前观察的迭代次数
+        "initial_scale_power": 16, #, 初始损失缩放因子的2的幂次
+        "hysteresis": 2, #, 调整损失缩放因子时的滞后阈值
+        "min_loss_scale": 1 #, 损失缩放因子的最小值
+    },
+    "bf16": {
+        "enabled": "auto" #, 是否启用混合精度（bfloat16，BF16）训练是自动决定的
+    },
+    "optimizer": {
+        "type": "AdamW", #, AdamW优化器
+        "params": {
+            "lr": "auto", #, 学习率自动调整
+            "betas": "auto", #, Adam优化器的两个动量参数
+            "eps": "auto", #, 防止除以零的小数
+            "weight_decay": "auto" #, 权重衰减系数
+        }
+    },
+
+    "scheduler": {
+        "type": "WarmupLR", #, 使用预热学习率调度器
+        "params": {
+            "warmup_min_lr": "auto", #, 预热期间的最小学习率
+            "warmup_max_lr": "auto", #, 预热期间的最大学习率
+            "warmup_num_steps": "auto" #, 预热期间的总步数
+        }
+    },
+
+    "zero_optimization": {
+        "stage": 2, #, 表示使用ZeRO（Zero Redundancy Optimizer）的第二阶段，旨在减少内存占用和加速训练。4090卡只能用到第2阶段，是把梯度、优化器参数分配到每张卡
+        "offload_optimizer": { # 将优化器状态卸载到CPU或其他设备的配置
+            "device": "none", # 不启用
+            "pin_memory": true #, 如果卸载，则使用CUDA固定内存
+        },
+        "allgather_partitions": true, #, 在梯度all-gather操作中分割数据
+        "allgather_bucket_size": 2e8, #, all-gather操作中每个桶的大小（字节）
+        "overlap_comm": true, #, 重叠通信和计算
+        "reduce_scatter": true, #, 使用reduce-scatter操作来减少通信开销
+        "reduce_bucket_size": 2e8, #, reduce-scatter操作中每个桶的大小（字节）
+        "contiguous_gradients": true #, 确保梯度在通信前是连续的
+    },
+
+    "gradient_accumulation_steps": "auto", # 梯度累积的步数是自动决定的
+    "gradient_clipping": "auto", # 梯度裁剪是自动决定的
+    "steps_per_print": 100, # 每100步打印一次训练状态
+    "train_batch_size": "auto", # 训练批次大小是自动决定的
+    "train_micro_batch_size_per_gpu": "auto", # 每个GPU上的微批次大小是自动决定的
+    "wall_clock_breakdown": false # 不打印详细的墙钟时间分解
+}
