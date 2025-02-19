@@ -58,8 +58,8 @@ def build_prompt_chatglm3(tokenizer, query, history, system=None):
 
 
 def build_prompt(tokenizer, template, query, history, system=None):
-    template_name = template.template_name
-    system_format = template.system_format
+    template_name = template.template_name # qwen
+    system_format = template.system_format #
     user_format = template.user_format
     assistant_format = template.assistant_format
     system = system if system is not None else template.system
@@ -117,7 +117,7 @@ def load_tokenizer(model_name_or_path):
 def main():
     # set params
     args = get_inference_args()
-    template_name = args.template_name
+    template_name = args.template_name # qwen
     model_name_or_path = args.model_path
 
     adapter_name_or_path = None
@@ -148,6 +148,7 @@ def main():
         load_in_4bit=load_in_4bit,
         adapter_name_or_path=adapter_name_or_path
     ).eval()
+    # 设置tokenizer和stop_token_id
     tokenizer = load_tokenizer(
         model_name_or_path if adapter_name_or_path is None else adapter_name_or_path)
     if template_name == 'chatglm2':
@@ -163,6 +164,8 @@ def main():
     prefix_list = ['给出下面这段文本的摘要，并保留原文中出现的要点序号：']
 
     # load inputs
+    # 传参：args.input_file = "/root/fine-tuning/data/summary/summary_test.jsonl"
+    # 返回值：input_file=summary_test
     input_file = pathlib.Path(args.input_file).stem
     os.makedirs(args.output_dir, exist_ok=True)
     out_file = os.path.join(args.output_dir, input_file + "-res.jsonl")
@@ -172,15 +175,19 @@ def main():
         with torch.no_grad():
 
                 for line in tqdm(f):
+                    # line是问题
                     if args.input_file.endswith(".jsonl"):
                         line = json.loads(line)
                         tag = "src" if "src" in line else "query"
                         line = line[tag]
                     else:
                         line = str(line).strip()
+                    # 虽然这里用了random，但是因为prefix_list是List且长度为1，所以每次结果都一样
+                    # 把要求+原文本，拼接在一起
                     prefix = random.choice(prefix_list)
                     line = f"{prefix}\n{line}"
 
+                    # 把数据，按照qwen的格式要求，进行token_id化
                     input_ids = build_prompt(tokenizer, template, line,
                                              history=[], system=None).to(model.device)
                     if input_ids.shape[-1] > args.max_length:
@@ -198,7 +205,7 @@ def main():
                         + "\n"
                     )
                     fout.flush()
-                    print(f"output: {output_str}")
+                    # print(f"output: {output_str}")
 
 
 if __name__ == '__main__':
