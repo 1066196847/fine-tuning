@@ -19,7 +19,7 @@ def get_vllm_response(query, context=None):
              {"role": "user", "content": query}
         ],
         "stream": True, # 这里设置成流式输出
-        "max_tokens": 16, #最大生产的token数量
+        "max_tokens": 512, #最大生产的token数量
     }
     time_st = int(time.time() * 1000) # 请求开始时间
     response = requests.post(url, headers=headers, json=data, stream=True)
