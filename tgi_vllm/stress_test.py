@@ -23,23 +23,30 @@ def get_vllm_response(query, context=None):
     }
     time_st = int(time.time() * 1000) # 请求开始时间
     response = requests.post(url, headers=headers, json=data, stream=True)
+    # print("response1=", response)
+    # print("response2=", response.json())
+    # print("response.headers.get('content-type')=", response.headers.get('content-type'))
 
     event_data = {} # 保存事件
     first_token_cost = None # 保存首字符时间
-
     if response.status_code == 200:
-        if response.headers.get('content-type') == 'text/event-stream; charset=utf8': # 判断是否为流式响应
-            for chunk in response:
-                chunk = chunk.decode('utf-8',errors='ignore').strip() # 解析数据
-                if first_token_cost is None: # 如果还没有记录首字符时间
-                    first_token_cost = int(time.time() * 1000) - time_st # 计算首包延迟，TTFT
+        if response.headers.get('content-type') == 'text/event-stream; charset=utf-8':  # 判断是否为流式响应
+            client = sseclient.SSEClient(response.iter_content())  # 创建sse客户端 实例以处理事件流
+            # print("client.events()=",client.events())  <generator object SSEClient.events at 0x7f44bd565f50>
+            for event in client.events():  # 循环解析事件
+                # print("event.data=", event.data, type(event.data))
+                if("DONE" not in event.data):
+                    event_data = json.loads(event.data)  # 解析事件数据
+                    if first_token_cost is None:  # 如果还没有记录首字符时间
+                        first_token_cost = int(time.time() * 1000) - time_st  # 计算首包延迟，TTFT
+                else:
+                    break  # 如果接受到结束标志和生成的文本，则退出循环
         else:
-            event_data = response.json() # 不是stream返回，直接解析json数据
-
-    event_data['query'] = query #存储query
-    event_data['first_token_cost'] = first_token_cost # 记录首字符的消耗
+            event_data = response.json()  # 不是stream返回，直接解析json数据
+    event_data['query'] = query  # 存储query
+    event_data['first_token_cost'] = first_token_cost  # 记录首字符的消耗
     if event_data.get('token'):
-        event_data.pop('token') # 如果存在token数据，则移除
+        event_data.pop('token')  # 如果存在token数据，则移除
     return event_data
 
 
@@ -114,7 +121,7 @@ def worker_function(query, start_time):
     response_data["st"] = int(time_st * 1000) # 请求开始时间（毫秒）
     response_data["ed"] = int(time.time() * 1000) # 请求结束时间（毫秒）
     response_data["request_cost"] = response_data["ed"] - response_data["st"] # 计算请求消耗时间 （毫秒）
-    print(json.dumps(response_data, ensure_ascii=False)) # 输出响应的数据
+    # print(json.dumps(response_data, ensure_ascii=False)) # 输出响应的数据
     return response_data
 
 if __name__ == "__main__":
@@ -147,7 +154,7 @@ if __name__ == "__main__":
 
     if example.get('first_token_cost'):
         first_token_costs = [data['first_token_cost'] for data in results] # 所有请求首包延迟
-        avg_first_token_cost_service = sum([data['first_token_cost'] for data inresults]) / len(results) # 平均首包延迟
+        avg_first_token_cost_service = sum([data['first_token_cost'] for data in results]) / len(results) # 平均首包延迟
         p95_first_token_cost = calculate_percentile(first_token_costs, 0.95) # 95百分位首包延迟
         p99_first_token_cost = calculate_percentile(first_token_costs, 0.99) # 99百分位首包延迟
         print(f"P95 time first token cost: {p95_first_token_cost:.0f}ms")
